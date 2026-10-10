@@ -25,3 +25,71 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+st.title("Vido summarizer agent")
+st.header("This app is powered by  gemini")
+
+
+def initialize_agent():
+    return Agent(
+        name="Video Summarizer",
+        model=Gemini(id="gemini-2.0-flash-exp"),
+        tools=[DuckDuckGo()],
+        markdown = True
+    )
+
+multimodel = initialize_agent()
+
+video_file = st.file_uploader("Upload a video file", type=["mp4", "mov", "avi"],help="Upload a video file for summarization")
+
+
+if video_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+        temp_file.write(video_file.read())
+        temp_file_path = temp_file.name
+    st.success("Video uploaded successfully!")
+    st.video(temp_file_path, format="video/mp4", start_time=0)
+
+    user_query=st.text_area(
+        "What insights are you seeking from the video?",
+        placeholder="Enter your query here",
+        help="Provide the insights you are seeking from the video."
+    )
+
+
+    if st.button("analyze video", key="analyze video button"):
+        if not user_query:
+            st.warning("Please enter your query before analyzing the video.")
+        else:
+            try:
+                with st.spinner("Analyzing video..."):
+                    # Call the agent to analyze the video based on the user query
+                    processed_video=upload_file(video_file_path)
+                    while processed_video.state.name == "PROCESSING":
+                        time.sleep(1)
+                        processed_video=get_file(processed_video.name)
+
+                    analysis_prompt=(
+                        f"Analyze the following video based on the user query: {user_query}\n"
+                    )
+
+                    response = multimodel.analyze_video(temp_file_path, analysis_prompt)
+
+                    st.subheader("Analysis Result")
+                    st.markdown(response.content)
+
+
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+
+
+st.markdown(
+    """
+    <style>
+    .stTextArea textarea {
+        height:100px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
